@@ -1,0 +1,78 @@
+\documentclass{scrartcl}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{listings}
+
+
+\title{Course DAC}
+\subtitle{1st homework: Implement URB\_broadcast with atomic registers}
+\author{Simon \textsc{Bouget} \and Louis \textsc{Rabiet}}
+\date{10/05/2012}
+
+\begin{document}
+
+\maketitle
+
+
+\section{Our proposition}
+
+\paragraph{Context} We implement Uniform Reliable Broadcast (URB) using a matrix R of Single-Writer-Multi-Reader atomic registers. Only $p_i$ can write on the line R[i]. For each process $p_i$, we use R[i][0] as a shared sequence number indicating the first free memory case in R[i] and we store the messages from $p_i$ in the subsequent cases.
+
+Moreover, each process $p_i$ stores locally a vector $sn_i$ where $sn_i[j]$ is the index of the next message from $j$ to be delivered by $i$.
+
+\paragraph{Initial conditions} $\forall i \in [1,n], ( R[i][0] = 1   \wedge  \forall j \in [1,n], sn_i[j] = 1)$
+
+We assume that all other cases are undefined at the begining of the execution.
+\begin{figure}[h!]
+\centering
+\begin{lstlisting}
+operation URB_broadcast(m) =
+	nb <- R[i][0].read();
+	R_i_nb.write(m);
+	R_i_0.write(nb+1); // the order between the last 2 lines is very important
+\end{lstlisting}	
+\caption{Code for URB\_broadcast() for the process $p_i$}
+\end{figure}
+\begin{figure}[h!]
+\centering
+\begin{lstlisting}
+task reading =
+	forever do
+		for (j <- 1..n) do
+			// if there is at least 1 new message sent by p_j
+			if (R_j_0 > sn_i[j]) then 
+				while (sn_i[j] <= R_j_0) do
+					m = R_j_(sn_i[j]).read()
+					URB_deliver(m)
+					sn_i[j]++
+				end while
+			end if
+		end for
+\end{lstlisting}
+\caption{Code for the task reading for the process $p_i$}
+\end{figure}
+
+\clearpage
+\section{Proof}
+\subsection{Validity}
+If a message is URB\_delivered, then the value representing it must have been written, and the only write() is inside URB\_broadcast. Hence, a message URB\_delivered must have been previously URB\_broadcast.
+
+
+\subsection{Integrity}
+The array $sn_i$ represents the next registers to be read by $p_i$. Since all values in this array are strictly increasing, then each register is read at most once, and the message represented by the value inside is delivered at most once.
+
+\subsection{Termination}
+First, let's prove that once the value representing a message is written in R, this value cannot be overwritten. Indeed, for all process $p_i$, the counter R[i][0] is strictly increasing while the process is functioning (i.e. until a potential crash) and only $p_i$ can write on the line $i$, so no two write() operations can be executed on the same memory case.
+
+Also, let's prove that the concurrency between the task reading of a process $p_i$ and the execution of URB\_broadcast by $p_j$ is not a problem. Indeed, the order in the last 2 lines guaranties that a memory case representing a message can only be accessed after it has been completely written.
+\subsubsection{Sub-property 1}
+If a non-faulty process $p_i$ URB\_broadcasts a message $m$, then its value is correctly written in the shared memory R[i] and will never be overwritten, and R[i][0] has been correctly updated. Moreover,  the task reading explores all the shared memory used by non-faulty processes, so each non-faulty process $p_j$ will eventually read it and URB\_deliver the corresponding message.
+\subsubsection{Uniform agreement}
+Let a message $m$ URB\_delivered by $p_i$. Then either $m.sender$ is faulty, or it isn't. If it isn't, then we are in the previous case.
+
+On the other hand, if $m.sender$ is faulty, then either R[$m.sender$][0] has been updated or it hasn't. If the counter has not been updated, $p_i$ couldn't have URB\_delivered $m$ and we have a contradiction. On the other hand, if the counter has been updated, then the value has been correctly written and will never be overwritten, so the task reading for correct processes will eventually access the memory case containing $m$.
+
+Whatever the case, if a process URB\_delivers a message $m$, all correct processes will URB\_deliver $m$.
+
+
+\end{document}

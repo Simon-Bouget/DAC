@@ -1,0 +1,25 @@
+﻿CODE POUR LE PROCESSUS p_i
+
+operation URB_broadcast(m) =
+	nb<-R_i_0.read();
+	R_i_nb.write(m);
+	R_i_0.write(nb+1);
+	
+
+task reading =
+	forever do
+		for (j <- 1..n) do
+			if (R_j_0 > sn_i[j]) then // there is at least 1 new message sent by p_j
+				while (sn_i[j] <= R_j_0) do
+					m = R_j_(sn_i[j]).read()
+					URB_deliver(m)
+					sn_i[j]++
+				end while
+			end if
+		end for
+
+		
+		penser à décrire la situation initiale !!
+
+		
+		validité : on "write" 
