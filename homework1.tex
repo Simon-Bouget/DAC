@@ -3,6 +3,9 @@
 \usepackage[english]{babel}
 \usepackage{listings}
 
+\usepackage{amsthm}
+\newtheorem{prop}{Property}
+\usepackage{amsmath}
 
 \title{Course DAC}
 \subtitle{1st homework: Implement URB\_broadcast with atomic registers}
@@ -53,26 +56,45 @@ task reading =
 \end{figure}
 
 \clearpage
-\section{Proof}
-\subsection{Validity}
+\section{Proofs}
+\begin{prop}[Validity]
+If a process URB-delivers a message m, then m has been previously URB-broadcast.
+\end{prop}
+
+\begin{proof}
 If a message is URB\_delivered, then the value representing it must have been written, and the only write() is inside URB\_broadcast. Hence, a message URB\_delivered must have been previously URB\_broadcast.
+\end{proof}
 
 
-\subsection{Integrity}
+\begin{prop}[Integrity]
+A process URB-delivers a message m at most once.
+\end{prop}
+
+\begin{proof}
 The array $sn_i$ represents the next registers to be read by $p_i$. Since all values in this array are strictly increasing, then each register is read at most once, and the message represented by the value inside is delivered at most once.
+\end{proof}
 
-\subsection{Termination}
+
+\begin{prop}[Termination]
+1. If a non-faulty process URB-broadcasts a message m then each non-faulty process URB-delivers the message m . \\
+2. if a process URB-delivers a message m, then each non-faulty process URB-delivers the message m.
+\end{prop}
+
+\begin{proof}
 First, let's prove that once the value representing a message is written in R, this value cannot be overwritten. Indeed, for all process $p_i$, the counter R[i][0] is strictly increasing while the process is functioning (i.e. until a potential crash) and only $p_i$ can write on the line $i$, so no two write() operations can be executed on the same memory case.
 
 Also, let's prove that the concurrency between the task reading of a process $p_i$ and the execution of URB\_broadcast by $p_j$ is not a problem. Indeed, the order in the last 2 lines guaranties that a memory case representing a message can only be accessed after it has been completely written.
-\subsubsection{Sub-property 1}
+\renewcommand{\qedsymbol}{}
+\begin{proof}[Sub-property 1]
 If a non-faulty process $p_i$ URB\_broadcasts a message $m$, then its value is correctly written in the shared memory R[i] and will never be overwritten, and R[i][0] has been correctly updated. Moreover,  the task reading explores all the shared memory used by non-faulty processes, so each non-faulty process $p_j$ will eventually read it and URB\_deliver the corresponding message.
-\subsubsection{Uniform agreement}
+\end{proof}
+\begin{proof}[Uniform agreement]
 Let a message $m$ URB\_delivered by $p_i$. Then either $m.sender$ is faulty, or it isn't. If it isn't, then we are in the previous case.
 
 On the other hand, if $m.sender$ is faulty, then either R[$m.sender$][0] has been updated or it hasn't. If the counter has not been updated, $p_i$ couldn't have URB\_delivered $m$ and we have a contradiction. On the other hand, if the counter has been updated, then the value has been correctly written and will never be overwritten, so the task reading for correct processes will eventually access the memory case containing $m$.
 
 Whatever the case, if a process URB\_delivers a message $m$, all correct processes will URB\_deliver $m$.
-
+\end{proof}
+\end{proof}
 
 \end{document}
