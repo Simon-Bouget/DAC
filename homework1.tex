@@ -2,8 +2,9 @@
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
 \usepackage{listings}
-
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e}
 \usepackage{amsthm}
+
 \newtheorem{prop}{Property}
 \usepackage{amsmath}
 
@@ -19,43 +20,42 @@
 
 \section{Our proposition}
 
-\paragraph{Context} We implement Uniform Reliable Broadcast (URB) using a matrix R of Single-Writer-Multi-Reader atomic registers. Only $p_i$ can write on the line R[i]. For each process $p_i$, we use R[i][0] as a shared sequence number indicating the first free memory case in R[i] and we store the messages from $p_i$ in the subsequent cases.
+\paragraph{Context} We implement Uniform Reliable Broadcast (URB) using a matrix $R$ of Single-Writer-Multi-Reader atomic registers. Only $p_i$ can write on the line $R[i]$. For each process $p_i$, we use $R[i][0]$ as a shared sequence number indicating the first free memory case in $R[i]$ and we store the messages from $p_i$ in the subsequent cases.
 
 Moreover, each process $p_i$ stores locally a vector $sn_i$ where $sn_i[j]$ is the index of the next message from $j$ to be delivered by $i$.
 
 \paragraph{Initial conditions} $\forall i \in [1,n], ( R[i][0] = 1   \wedge  \forall j \in [1,n], sn_i[j] = 1)$
 
-We assume that all other cases are undefined at the begining of the execution.
-\begin{figure}[h!]
-\centering
-\begin{lstlisting}
-operation URB_broadcast(m) =
-	nb <- R[i][0].read();
-	R_i_nb.write(m);
-	R_i_0.write(nb+1); // the order between the last 2 lines is very important
-\end{lstlisting}	
-\caption{Code for URB\_broadcast() for the process $p_i$}
-\end{figure}
-\begin{figure}[h!]
-\centering
-\begin{lstlisting}
-task reading =
-	forever do
-		for (j <- 1..n) do
-			// if there is at least 1 new message sent by p_j
-			if (R_j_0 > sn_i[j]) then 
-				while (sn_i[j] <= R_j_0) do
-					m = R_j_(sn_i[j]).read()
-					URB_deliver(m)
-					sn_i[j]++
-				end while
-			end if
-		end for
-\end{lstlisting}
-\caption{Code for the task reading for the process $p_i$}
-\end{figure}
+We assume that all other cases are undefined at the beginning of the execution.
 
-\clearpage
+\begin{algorithm}
+\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon instead
+\textbf{operation} URB\_broadcast(m) = \\
+   $nb \gets R[i][0].read()$\;
+   $R[i][nb].write(m)$\;
+   $R[i][nb].write(nb+1)$ \tcp*[r]{order between these 2 lines is important}
+\caption{{\sc URB\_broadcast} (code for the processus $p_i$)}
+\label{algo:URBbroadcast}
+\end{algorithm}
+
+
+\begin{algorithm}[h!]
+\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon instead
+\textbf{task} reading = \textbf{repeat forever} \\
+\For{$j \in 1..n$}{
+   \If{$R[j][0] > sn_i[j]$}{  \tcp*[l]{ if there is at least 1 new message sent by $p_j$ }
+    \While{$sn_i[j] \leq R[j][0]$}{
+      $m = R[j][sn_i[j]].read()$\;
+      $URB\_deliver(m)$\;
+      $sn_i[j] \gets sn_i[j] + 1$\;
+    }
+  }
+}
+\caption{{\sc Reading task} (code for the processus $p_i$)}
+\label{algo:URBreading}
+\end{algorithm}
+
+
 \section{Proofs}
 \begin{prop}[Validity]
 If a process URB-delivers a message m, then m has been previously URB-broadcast.
@@ -71,7 +71,7 @@ A process URB-delivers a message m at most once.
 \end{prop}
 
 \begin{proof}
-The array $sn_i$ represents the next registers to be read by $p_i$. Since all values in this array are strictly increasing, then each register is read at most once, and the message represented by the value inside is delivered at most once.
+The array $sn_i$ represents the next registers to be read by $p_i$. Since all values in this array are strictly increasing and necessarily incremented after each URB\_deliver(), then each register is read at most once, and the message represented by the value inside is delivered at most once.
 \end{proof}
 
 
@@ -88,7 +88,7 @@ Also, let's prove that the concurrency between the task reading of a process $p_
 \begin{proof}[Sub-property 1]
 If a non-faulty process $p_i$ URB\_broadcasts a message $m$, then its value is correctly written in the shared memory R[i] and will never be overwritten, and R[i][0] has been correctly updated. Moreover,  the task reading explores all the shared memory used by non-faulty processes, so each non-faulty process $p_j$ will eventually read it and URB\_deliver the corresponding message.
 \end{proof}
-\begin{proof}[Uniform agreement]
+\begin{proof}[Sub-property 2 : uniform agreement]
 Let a message $m$ URB\_delivered by $p_i$. Then either $m.sender$ is faulty, or it isn't. If it isn't, then we are in the previous case.
 
 On the other hand, if $m.sender$ is faulty, then either R[$m.sender$][0] has been updated or it hasn't. If the counter has not been updated, $p_i$ couldn't have URB\_delivered $m$ and we have a contradiction. On the other hand, if the counter has been updated, then the value has been correctly written and will never be overwritten, so the task reading for correct processes will eventually access the memory case containing $m$.
